@@ -10,10 +10,13 @@ import tkinter.messagebox as tm
 
 
 def read_and_print_hex(file_path):
-    with open(file_path, 'rb') as file:
-        binary_data = file.read()
-        hex_data = binascii.hexlify(binary_data).decode('ascii')
-        return hex_data
+    try:
+        with open(file_path, 'rb') as file:
+            binary_data = file.read()
+            hex_data = binascii.hexlify(binary_data).decode('ascii')
+            return hex_data
+    except Exception as e:
+        tm.showerror("错误！", "密钥与文件不兼容，请重试！（{}）".format(str(e)))
 
 
 def hex_string_to_binary_file(hex_string, file_path):
@@ -41,7 +44,7 @@ def rgb_to_hex(rgb_color):
     return '{:02x}{:02x}{:02x}'.format(rgb_color[0], rgb_color[1], rgb_color[2])
 
 
-arr = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'a', 'b', 'c', 'd', 'e', 'f'] * 6
+arr = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'a', 'b', 'c', 'd', 'e', 'f'] * 10
 arr_index = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'a', 'b', 'c', 'd', 'e', 'f']
 
 
@@ -124,8 +127,8 @@ class OneJiaMiGUI:
         self.root = root
         self.frame = tk.CTkFrame(root, corner_radius=10, fg_color="#2B2B2C")
         self.path = path
-        self.base = key
-        self.jiamipath = jiamipath + '/' + os.path.basename(self.path)
+        self.key = key
+        self.jiamipath = jiamipath + '/' + "(dir)" + os.path.basename(self.path)
         self.file_info = os.stat(self.path)
         self.name = os.path.basename(self.path)
         if len(self.name) >= 10:
@@ -155,9 +158,19 @@ class OneJiaMiGUI:
             os.mkdir(self.jiamipath)
         except FileExistsError:
             pass
+        except (FileNotFoundError,Exception) as e:
+            tm.showerror("错误！", "文件创建错误，请更换储存位置！（{}）".format(str(e)))
+            self.destroy()
+            return
         threading.Thread(
-            target=lambda: print_img_with_hex(self.jiamipath + '/', self.path, self.base, (self.label, self.label4),
-                                              self.progressbar)).start()
+            target=lambda: self.procress()).start()
+    def procress(self):
+        print_img_with_hex(self.jiamipath + '/', self.path, self.key, (self.label, self.label4),
+                                              self.progressbar)
+        self.frame.bind("<Button-1>",lambda event:self.destroy())
+
+    def destroy(self, **kwargs):
+        self.frame.destroy(**kwargs)
 
     def pack(self, **kwargs):
         self.frame.pack(**kwargs)
@@ -173,6 +186,7 @@ class AddAJiaMi:
     def __init__(self, root):
         self._root = root
         self.root = tk.CTkToplevel()
+        self.root.attributes('-topmost', 'true')
         self.root.title("添加加密")
         self.frame = tk.CTkFrame(self.root, corner_radius=10, fg_color="#2B2B2C")
         self.frame_a = tk.CTkFrame(self.frame, corner_radius=10, fg_color="#2B2B2C")
@@ -281,12 +295,20 @@ class OneJieMiGUI:
     def start(self):
         try:
             os.mkdir(self.jiemipath)
-        except (FileExistsError, FileNotFoundError):
+        except FileExistsError:
             pass
+        except (FileNotFoundError,Exception) as e:
+            tm.showerror("错误！", "文件创建错误，请更换储存位置！（{}）".format(str(e)))
+            self.destroy()
+            return
         threading.Thread(
-            target=lambda: jieme(self.path, self.jiemipath, self.key, (self.label, self.label4),
-                                 self.progressbar)).start()
+            target=lambda: self.procress()).start()
+    def procress(self):
+        jieme(self.path, self.jiemipath, self.key, (self.label, self.label4), self.progressbar)
+        self.frame.bind("<Button-1>",lambda event:self.destroy())
 
+    def destroy(self, **kwargs):
+        self.frame.destroy(**kwargs)
     def pack(self, **kwargs):
         self.frame.pack(**kwargs)
 
@@ -301,6 +323,7 @@ class AddAJieMi:
     def __init__(self, root):
         self._root = root
         self.root = tk.CTkToplevel()
+        self.root.attributes('-topmost', 'true')
         self.root.title("添加加密")
         self.frame = tk.CTkFrame(self.root, corner_radius=10, fg_color="#2B2B2C")
         self.frame_a = tk.CTkFrame(self.frame, corner_radius=10, fg_color="#2B2B2C")
