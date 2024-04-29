@@ -48,7 +48,14 @@ arr = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'a', 'b', 'c', 'd', 'e'
 arr_index = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'a', 'b', 'c', 'd', 'e', 'f']
 
 
-def print_img_with_hex(file_path, in_f, key, labels: (tk.CTkLabel,), pro: tk.CTkProgressBar):
+def xor_jiame_str(string, num):
+    s = ''
+    for i in string:
+        s += chr(ord(i) ^ num)
+    return s
+
+
+def print_img_with_hex(file_path, in_f, key, labels: (tk.CTkLabel,), pro: tk.CTkProgressBar, label1: tk.CTkLabel):
     """
     file_path: 输出到
     in_f: 输入文件
@@ -78,7 +85,7 @@ def print_img_with_hex(file_path, in_f, key, labels: (tk.CTkLabel,), pro: tk.CTk
                 key_index = key_index % len(key)
             else:
                 break
-    file_path += str(zero_have) + ";" + name + '.png'
+    file_path += str(zero_have) + ";" + xor_jiame_str(name, ord(key[0])) + '.png'
     image = Image.fromarray(image, 'RGB')
     image.save(file_path)
     pro.configure(mode='determinate')
@@ -87,11 +94,12 @@ def print_img_with_hex(file_path, in_f, key, labels: (tk.CTkLabel,), pro: tk.CTk
     pro.set(100)
     pro.stop()
     for label in labels:
-        label.configure(text='已完成')
+        label.configure(text='已完成', text_color='#1E6BA5')
         label.update()
+    label1.configure(text="点按以关闭。")
 
 
-def jieme(path, out_path, key, labels: (tk.CTkLabel,), pro: tk.CTkProgressBar):
+def jieme(path, out_path, key, labels: (tk.CTkLabel,), pro: tk.CTkProgressBar, label1: tk.CTkLabel):
     img = Image.open(path)
     img = np.array(img)
     file_hex = ''
@@ -111,15 +119,18 @@ def jieme(path, out_path, key, labels: (tk.CTkLabel,), pro: tk.CTkProgressBar):
         key_index += 1
         key_index = key_index % len(key)
     content = content.rstrip('0') + '0' * int(os.path.basename(path).split(';')[0])
-    hex_string_to_binary_file(content, out_path + ''.join(os.path.basename(path).split(';')[1:])[:-4])
+    hex_string_to_binary_file(content,
+                              out_path + xor_jiame_str(';'.join(os.path.basename(path).split(';')[1:]), ord(key[0]))[
+                                         :-4])
     pro.configure(mode='determinate')
     pro['maximum'] = 1000
     pro['value'] = 100
     pro.set(100)
     pro.stop()
     for label in labels:
-        label.configure(text='已完成')
+        label.configure(text='已完成', text_color='green')
         label.update()
+    label1.configure(text="点按以关闭。")
 
 
 class OneJiaMiGUI:
@@ -135,7 +146,7 @@ class OneJiaMiGUI:
             self.name = self.name[:7] + '...'
         self.frame2 = tk.CTkFrame(self.frame)
         self.frame2.grid(row=0, column=0, padx=3, pady=3)
-        self.label = tk.CTkLabel(self.frame2, text=self.name, font=("黑体", 50))
+        self.label = tk.CTkLabel(self.frame2, text=self.name, font=("黑体", 50), text_color="#1E6BA5")
         self.label.pack(padx=3, pady=3)
         self.label2 = tk.CTkLabel(self.frame2,
                                   text=f'文件大小：{self.file_info.st_size / 1024 / 1024:.2f}MB，'
@@ -158,19 +169,20 @@ class OneJiaMiGUI:
             os.mkdir(self.jiamipath)
         except FileExistsError:
             pass
-        except (FileNotFoundError,Exception) as e:
+        except (FileNotFoundError, Exception) as e:
             tm.showerror("错误！", "文件创建错误，请更换储存位置！（{}）".format(str(e)))
             self.destroy()
             return
         threading.Thread(
             target=lambda: self.procress()).start()
+
     def procress(self):
         print_img_with_hex(self.jiamipath + '/', self.path, self.key, (self.label, self.label4),
-                                              self.progressbar)
-        self.frame.bind("<Button-1>",lambda event:self.destroy())
+                           self.progressbar, self.label2)
+        self.frame.bind("<Button-1>", lambda event: self.destroy())
 
-    def destroy(self, **kwargs):
-        self.frame.destroy(**kwargs)
+    def destroy(self):
+        self.frame.destroy()
 
     def pack(self, **kwargs):
         self.frame.pack(**kwargs)
@@ -297,18 +309,20 @@ class OneJieMiGUI:
             os.mkdir(self.jiemipath)
         except FileExistsError:
             pass
-        except (FileNotFoundError,Exception) as e:
+        except (FileNotFoundError, Exception) as e:
             tm.showerror("错误！", "文件创建错误，请更换储存位置！（{}）".format(str(e)))
             self.destroy()
             return
         threading.Thread(
             target=lambda: self.procress()).start()
-    def procress(self):
-        jieme(self.path, self.jiemipath, self.key, (self.label, self.label4), self.progressbar)
-        self.frame.bind("<Button-1>",lambda event:self.destroy())
 
-    def destroy(self, **kwargs):
-        self.frame.destroy(**kwargs)
+    def procress(self):
+        jieme(self.path, self.jiemipath, self.key, (self.label, self.label4), self.progressbar, self.label2)
+        self.frame.bind("<Button-1>", lambda event: self.destroy())
+
+    def destroy(self):
+        self.frame.destroy()
+
     def pack(self, **kwargs):
         self.frame.pack(**kwargs)
 
