@@ -1,3 +1,5 @@
+# BY: Love Programming
+import _tkinter
 import binascii
 import threading
 import numpy as np
@@ -10,13 +12,10 @@ import tkinter.messagebox as tm
 
 
 def read_and_print_hex(file_path):
-    try:
-        with open(file_path, 'rb') as file:
-            binary_data = file.read()
-            hex_data = binascii.hexlify(binary_data).decode('ascii')
-            return hex_data
-    except Exception as e:
-        tm.showerror("错误！", "密钥与文件不兼容，请重试！（{}）".format(str(e)))
+    with open(file_path, 'rb') as file:
+        binary_data = file.read()
+        hex_data = binascii.hexlify(binary_data).decode('ascii')
+        return hex_data
 
 
 def hex_string_to_binary_file(hex_string, file_path):
@@ -48,10 +47,20 @@ arr = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'a', 'b', 'c', 'd', 'e'
 arr_index = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'a', 'b', 'c', 'd', 'e', 'f']
 
 
-def xor_jiame_str(string, num):
-    s = ''
+def jiame_str(string, num):
+    s = binascii.hexlify(string.encode('utf-8')).decode('utf-8')
+    s_fin = ''
+    for i in s:
+        s_fin += arr[arr_index.index(i) + num]
+    return s_fin
+
+
+def jiemi_str(string, num):
+    s_fin = ''
     for i in string:
-        s += chr(ord(i) ^ num)
+        s_fin += arr[arr_index.index(i) + 32 - num]
+    b = bytes.fromhex(s_fin)
+    s = b.decode('utf-8')
     return s
 
 
@@ -71,8 +80,8 @@ def print_img_with_hex(file_path, in_f, key, labels: (tk.CTkLabel,), pro: tk.CTk
     for x in range(height):
         for y in range(width):
             if len(file_hex[lens:lens + 6]) != 6:
-                file_hex += '0' * (6 - len(file_hex[lens:lens + 6]))
                 zero_have = 6 - len(file_hex[lens:lens + 6])
+                file_hex += '0' * (6 - len(file_hex[lens:lens + 6]))
             if file_hex[lens:lens + 6]:
                 map_list = list(file_hex[lens:lens + 6])
                 for i in range(len(map_list)):
@@ -85,7 +94,7 @@ def print_img_with_hex(file_path, in_f, key, labels: (tk.CTkLabel,), pro: tk.CTk
                 key_index = key_index % len(key)
             else:
                 break
-    file_path += str(zero_have) + ";" + xor_jiame_str(name, ord(key[0])) + '.png'
+    file_path += str(zero_have) + ";" + jiame_str(name, ord(key[0])) + '.png'
     image = Image.fromarray(image, 'RGB')
     image.save(file_path)
     pro.configure(mode='determinate')
@@ -120,8 +129,7 @@ def jieme(path, out_path, key, labels: (tk.CTkLabel,), pro: tk.CTkProgressBar, l
         key_index = key_index % len(key)
     content = content.rstrip('0') + '0' * int(os.path.basename(path).split(';')[0])
     hex_string_to_binary_file(content,
-                              out_path + xor_jiame_str(';'.join(os.path.basename(path).split(';')[1:]), ord(key[0]))[
-                                         :-4])
+                              out_path + jiemi_str(';'.join(os.path.basename(path[:-4]).split(';')[1:]), ord(key[0])))
     pro.configure(mode='determinate')
     pro['maximum'] = 1000
     pro['value'] = 100
@@ -173,12 +181,19 @@ class OneJiaMiGUI:
             tm.showerror("错误！", "文件创建错误，请更换储存位置！（{}）".format(str(e)))
             self.destroy()
             return
-        threading.Thread(
-            target=lambda: self.procress()).start()
+        try:
+            threading.Thread(
+                target=lambda: self.procress()).start()
+        except (_tkinter.TclError, RuntimeError):
+            pass
 
     def procress(self):
-        print_img_with_hex(self.jiamipath + '/', self.path, self.key, (self.label, self.label4),
-                           self.progressbar, self.label2)
+        try:
+            print_img_with_hex(self.jiamipath + '/', self.path, self.key, (self.label, self.label4),
+                               self.progressbar, self.label2)
+        except (ValueError, TypeError, Exception) as e:
+            tm.showerror("错误！", "密钥与文件不兼容，请重试！（{}）".format(str(e)))
+            self.destroy()
         self.frame.bind("<Button-1>", lambda event: self.destroy())
 
     def destroy(self):
@@ -247,6 +262,9 @@ class AddAJiaMi:
         if yuan and input_jiami_score:
             base = self.key.get()
             if base:
+                if base[0] not in [str(i) for i in range(10)]:
+                    tm.showerror("错误", "秘钥的第一位必须是数字！")
+                    return
                 new_dl = OneJiaMiGUI(self._root, yuan, base, input_jiami_score)
                 new_dl.pack(padx=10, pady=10, side=tk.BOTTOM)
                 new_dl.start()
@@ -281,6 +299,7 @@ class OneJieMiGUI:
         self.jiemipath = jiemipath + '/'
         self.file_info = os.stat(self.path)
         self.name = os.path.basename(self.path)
+        self.name = jiemi_str(';'.join(self.name[:-4].split(';')[1:]), ord(key[0]))
         if len(self.name) >= 10:
             self.name = self.name[:7] + '...'
         self.frame2 = tk.CTkFrame(self.frame)
@@ -313,11 +332,18 @@ class OneJieMiGUI:
             tm.showerror("错误！", "文件创建错误，请更换储存位置！（{}）".format(str(e)))
             self.destroy()
             return
-        threading.Thread(
-            target=lambda: self.procress()).start()
+        try:
+            threading.Thread(
+                target=lambda: self.procress()).start()
+        except (_tkinter.TclError, RuntimeError):
+            pass
 
     def procress(self):
-        jieme(self.path, self.jiemipath, self.key, (self.label, self.label4), self.progressbar, self.label2)
+        try:
+            jieme(self.path, self.jiemipath, self.key, (self.label, self.label4), self.progressbar, self.label2)
+        except (ValueError, TypeError, Exception) as e:
+            tm.showerror("错误！", "密钥与文件不兼容，请重试！（{}）".format(str(e)))
+            self.destroy()
         self.frame.bind("<Button-1>", lambda event: self.destroy())
 
     def destroy(self):
@@ -338,7 +364,7 @@ class AddAJieMi:
         self._root = root
         self.root = tk.CTkToplevel()
         self.root.attributes('-topmost', 'true')
-        self.root.title("添加加密")
+        self.root.title("添加解密")
         self.frame = tk.CTkFrame(self.root, corner_radius=10, fg_color="#2B2B2C")
         self.frame_a = tk.CTkFrame(self.frame, corner_radius=10, fg_color="#2B2B2C")
         self.input_yuan_score = tk.StringVar()
@@ -471,4 +497,7 @@ def guis():
 
 
 if __name__ == '__main__':
-    guis()
+    try:
+        guis()
+    except (_tkinter.TclError, RuntimeError, Exception):
+        pass
